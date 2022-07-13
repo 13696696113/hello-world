@@ -178,6 +178,11 @@ saver = tf.train.Saver(tf.global_variables(), max_to_keep=1)
 
 print('train start...')
 # Train model
+
+rem_pre = []
+rem_rec = []
+rem_f1 = []
+
 for epoch in range(FLAGS.epochs):
     t = time.time()
         
@@ -218,6 +223,13 @@ for epoch in range(FLAGS.epochs):
     test_cost, test_acc, test_duration, embeddings, pred, labels = evaluate(test_feature, test_adj, test_mask, test_y, test_mainv, placeholders)   # csl
     #print("pred: ",pred)
     #print("labels: ", labels)
+
+    # csl 0713 修改 : 记录每个epoch的指标变化
+    precision, recall, f_score, _ = metrics.precision_recall_fscore_support(labels, pred, average='macro')
+    rem_pre.append(precision)
+    rem_rec.append(recall)
+    rem_f1.append(f_score)
+
     # lists = []
     # for index in test_y:
     #     if index == np.array([1,0]):
@@ -259,6 +271,26 @@ print("Macro average Test Precision, Recall and F1-Score...")
 print(metrics.precision_recall_fscore_support(labels, preds, average='macro'))
 print("Micro average Test Precision, Recall and F1-Score...")
 print(metrics.precision_recall_fscore_support(labels, preds, average='micro'))
+
+# csl 0713 修改 : 计算auc aupr
+# 注意，这里的preds元素需要为概率而不是分类结果
+print("best_auc: {}".format(metrics.roc_auc_score(labels, preds, average='macro')))
+print("best_aupr: {}".format(metrics.average_precision_score(labels, preds)))
+
+# csl 0713 修改 : 把epoch的指标变化存进同目录文件；存储labels preds，供画图
+def write2txt(filename, l):
+    full_path = FLAGS.dataset + '_' + filename + '.txt'
+    f = open(full_path,"w")
+    for line in l:
+        f.write(str(line)+'\n')
+    f.close()
+
+write2txt("rem_pre", rem_pre)
+write2txt("rem_rec", rem_rec)
+write2txt("rem_f1", rem_f1)
+
+write2txt("labels", labels)
+write2txt("preds", preds)
 
 # # 保存模型
 # saver=tf.train.Saver(max_to_keep=1)
