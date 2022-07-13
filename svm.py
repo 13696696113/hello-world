@@ -8,7 +8,7 @@ from numpy.random import shuffle
 import os
 import time
 # inputfile = 'E:/研究生学习/2021华为杯研究生数模/确认：D题/模型/SVM分类（第三题baseline）/分类任务训练数据.
-inputfile = 'C:/Users/22174/Desktop/11.csv'
+inputfile = '11.csv'
 data=pd.read_csv(inputfile)
 
 data.head()
@@ -57,33 +57,47 @@ print("aupr_test", aupr_test)
 print('time: {}'.format(time.time() - start))
 
 
-pred_0 = model.predict_proba(x_test)
-pred = []
-for item in pred_0:
-    if item[0] > item[1]:
-        pred.append(item[0])
-    else:
-        pred.append(item[1])
-
 y = []
 for item in y_test:
     y.append(int(item))
 
-print(y, pred)
+pred_0 = model.predict_proba(x_test)
+pred = []
+for i in range(len(y)):
+    pred.append(pred_0[i][y[i]])
+
+print("y: {}".format(len(y)))
+print("pred: {}".format(len(pred)))
+
+auc_test = metrics.roc_auc_score(y, pred, average='macro')
+print("another_auc_test", auc_test)
+aupr_test = metrics.average_precision_score(y, pred)
+print("another_aupr_test", aupr_test)
 
 import matplotlib.pylab as plt
+from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_auc_score
 
-fpr1, tpr1, thresholds = metrics.roc_curve(y, pred)
-roc_auc1 = metrics.auc(fpr1, tpr1)
-plt.plot(fpr1, tpr1, 'b', label='AUC = %0.2f' % roc_auc1)
+# fpr1, tpr1, thresholds = metrics.roc_curve(y, pred)
+# roc_auc1 = metrics.auc(fpr1, tpr1)
+# plt.plot(fpr1, tpr1, 'b', label='AUC = %0.2f' % roc_auc1)
+#
+#
+# plt.legend(loc='lower right')
+# plt.plot([0, 1], [0, 1], 'r--')
+# # plt.xlim([0, 1])  # the range of x-axis
+# # plt.ylim([0, 1])  # the range of y-axis
+# plt.xlabel('False Positive Rate')  # the name of x-axis
+# plt.ylabel('True Positive Rate')  # the name of y-axis
+# plt.title('Receiver operating characteristic example')  # the title of figure
+# plt.show()
 
 
-plt.legend(loc='lower right')
-plt.plot([0, 1], [0, 1], 'r--')
-# plt.xlim([0, 1])  # the range of x-axis
-# plt.ylim([0, 1])  # the range of y-axis
-plt.xlabel('False Positive Rate')  # the name of x-axis
-plt.ylabel('True Positive Rate')  # the name of y-axis
-plt.title('Receiver operating characteristic example')  # the title of figure
-plt.show()
+def write2txt(filename, l):
+    f = open(filename,"w")
+    for line in l:
+        f.write(str(line)+'\n')
+    f.close()
 
+write2txt("svm_pre.txt", pred)
+write2txt("svm_y.txt", y)

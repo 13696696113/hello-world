@@ -9,6 +9,8 @@ import torch.nn.functional as F
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.metrics import accuracy_score,f1_score,recall_score,precision_score, roc_auc_score, average_precision_score
 import time
+from sklearn import metrics
+import numpy as np
 
 dtype = torch.FloatTensor
 embedding_dim = 50
@@ -17,7 +19,7 @@ num_classes = 2  # 0 or 1
 # sentences = ["i love you", "he loves me", "she likes baseball", "i hate you", "sorry for that", "this is awful"]
 # labels = [1, 1, 1, 0, 0, 0]
 
-adv_data = pd.read_csv("C:/Users/22174/Desktop/qq.csv")
+adv_data = pd.read_csv("qq.csv")
 X = adv_data.iloc[:,0].values
 labels = adv_data.iloc[:,5].values
 sentences = []
@@ -100,13 +102,23 @@ best_pre = 0
 best_epoch = 0
 best_auc = 0
 best_aupr = 0
+lowest_loss = 111111
 last_attention = []
 all_time = []
-for epoch in range(250):
+best_epo_target = None
+best_epo_pred = None
+for epoch in range(300):
     tmp_time = time.time()
     optimizer.zero_grad()
     output, attention = model(input_batch)
     pred = output.data.max(1, keepdim=True)[1]
+
+    prob_pred = []
+    tmp = output.data.numpy().tolist()
+    for i in range(len(tmp)):
+        all = abs(tmp[i][0]) + abs(tmp[i][1])
+        prob_pred.append(abs(tmp[i][target_batch[i]])/all)
+
     # print(f"均方误差(MSE)：{mean_squared_error(pred, target_batch)}")
     acc = accuracy_score(target_batch, pred)
     pre = precision_score(target_batch, pred, average='macro')
@@ -114,7 +126,8 @@ for epoch in range(250):
     f1 = f1_score(target_batch, pred, average='macro')
     auc = roc_auc_score(target_batch, pred, average='macro')
     aupr = average_precision_score(target_batch, pred)
-    if f1 > best_f1:
+    loss = criterion(output, target_batch)
+    if f1 > best_f1 or loss < lowest_loss:
         best_f1 = f1
         best_rec = rec
         best_acc = acc
@@ -123,11 +136,13 @@ for epoch in range(250):
         best_epoch = epoch
         best_auc = auc
         best_aupr = aupr
+        best_epo_target = target_batch
+        best_epo_pred = prob_pred
+        lowest_loss = loss
     # print("accuracy_score", acc)
     # print("precision_score", pre)
     # print("recall_score", rec)
     # print("f1_score", f1)
-    loss = criterion(output, target_batch)
     if (epoch + 1) % 5 == 0:
         print('Epoch:', '%04d' % (epoch + 1), 'cost =', '{:.6f}'.format(loss))
     loss.backward()
@@ -210,3 +225,20 @@ for i in range(50):
 #
 # plt.show()
 
+
+print("best_epo_target: {}".format(best_epo_target))
+print("best_epo_pred: {}".format(np.array(best_epo_pred)))
+
+auc_test = metrics.roc_auc_score(best_epo_target.numpy(), np.array(best_epo_pred), average='macro')
+print("auc_test", auc_test)
+aupr_test = metrics.average_precision_score(best_epo_target.numpy(), np.array(best_epo_pred))
+print("aupr_test", aupr_test)
+
+def write2txt(filename, l):
+    f = open(filename,"w")
+    for line in l:
+        f.write(str(line)+'\n')
+    f.close()
+
+write2txt("lstm_pre.txt", np.array(best_epo_pred))
+write2txt("lstm_y.txt", best_epo_target.numpy())
